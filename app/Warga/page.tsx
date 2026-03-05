@@ -37,7 +37,7 @@ export default function Home() {
 
   const fetchLaporan = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/laporan');
+      const res = await axios.get('http://localhost:5000/api/laporan');
       setLaporanList(res.data);
     } catch (err) { console.error("Gagal ambil data"); }
   };
@@ -60,7 +60,7 @@ export default function Home() {
     if (selectedImage) formData.append('photo', selectedImage);
 
     try {
-      await axios.post('http://localhost:5000/laporan', formData, {
+      await axios.post('http://localhost:5000/api/laporan', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setForm({ pelapor: '', lokasi: '', deskripsi: '', latitude: 0, longitude: 0 });

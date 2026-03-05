@@ -2,12 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  serverExternalPackages: ["@prisma/client"], 
+  serverExternalPackages: ["@prisma/client"],
   
-experimental: {
-  // @ts-ignore
-  allowedDevOrigins: ['192.168.56.1', 'localhost:3000'],
-},
+  // Tambahkan ini untuk mengizinkan akses dari IP lokal
+  allowedDevOrigins: ['192.168.56.1', 'localhost'],
+  
+  // Untuk Next.js 16.1.6, gunakan format ini
+  experimental: {
+    // Konfigurasi lain jika ada
+  },
 };
 
 export default nextConfig;
