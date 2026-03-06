@@ -1,32 +1,76 @@
 "use client";
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useRouter } from 'next/navigation';
+// HAPUS baris ini → import ProtectedRoute from '@/components/ProtectedRoute';
 import NavbarSupir from './components/NavbarSupir';
 import TugasCard from './components/TugasCard';
-import LoginFormSupir from './components/LoginFormSupir'; // Pastikan sudah dibuat
 import { Truck, ClipboardList, CheckCircle, Clock, Map as MapIcon, BarChart3, User } from 'lucide-react';
 
 export default function HalamanSupir() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [driverData, setDriverData] = useState<any>(null);
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
   const [tugasList, setTugasList] = useState([]);
   const [stats, setStats] = useState({ baru: 0, proses: 0, selesai: 0 });
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
-  // Fungsi Fetch diletakkan di luar conditional return
+  useEffect(() => {
+    // Cek login status
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    
+    if (!token || !userStr) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(userStr);
+      
+      // Cek apakah role-nya OPERATOR (supir)
+      if (userData.role !== 'OPERATOR') {
+        // Jika bukan supir, redirect ke halaman yang sesuai
+        if (userData.role === 'ADMIN') {
+          router.push('/admin');
+        } else if (userData.role === 'WARGA') {
+          router.push('/Warga');
+        } else {
+          router.push('/');
+        }
+        return;
+      }
+
+      // Jika semua ok
+      setUser(userData);
+      setIsLoggedIn(true);
+    } catch (error) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.push('/login');
+    } finally {
+      setIsChecking(false);
+    }
+    
+    fetchTugas();
+  }, [router]);
+
   const fetchTugas = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5000/laporan');
+      const res = await axios.get('http://localhost:5000/api/laporan');
       const allData = res.data;
 
       setStats({
-        baru: allData.filter((l: any) => l.status === 'BARU').length,
-        proses: allData.filter((l: any) => l.status === 'DITINDAKLANJUTI').length,
+        baru: allData.filter((l: any) => l.status === 'PENDING' || l.status === 'BARU').length,
+        proses: allData.filter((l: any) => l.status === 'DIPROSES' || l.status === 'DITINDAKLANJUTI').length,
         selesai: allData.filter((l: any) => l.status === 'SELESAI').length,
       });
 
-      const filterTugas = allData.filter((l: any) => l.status === 'DITINDAKLANJUTI');
+      const filterTugas = allData.filter((l: any) => 
+        l.status === 'DIPROSES' || l.status === 'DITINDAKLANJUTI'
+      );
       setTugasList(filterTugas);
     } catch (err) {
       console.error("Gagal ambil data");
@@ -35,22 +79,10 @@ export default function HalamanSupir() {
     }
   };
 
-  // Jalankan fetch hanya jika sudah login
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchTugas();
-    }
-  }, [isLoggedIn]);
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setDriverData(null);
-  };
-
   const handleSelesai = async (id: string) => {
     if (confirm("Konfirmasi: Sampah di lokasi ini sudah benar-benar diangkut?")) {
       try {
-        await axios.patch(`http://localhost:5000/laporan/${id}`, { status: "SELESAI" });
+        await axios.patch(`http://localhost:5000/api/laporan/${id}`, { status: "SELESAI" });
         alert("Status berhasil diperbarui ke SELESAI");
         fetchTugas(); 
       } catch (err) {
@@ -59,28 +91,36 @@ export default function HalamanSupir() {
     }
   };
 
-  // LOGIKA TAMPILAN: Jika belum login, tampilkan LoginForm
-  if (!isLoggedIn) {
+  // Tampilkan loading screen saat pengecekan
+  if (isChecking) {
     return (
-      <LoginFormSupir 
-        onLoginSuccess={(data: any) => {
-          setDriverData(data);
-          setIsLoggedIn(true);
-        }} 
-      />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Memverifikasi akses...</p>
+        </div>
+      </div>
     );
   }
 
-  // JIKA SUDAH LOGIN, TAMPILKAN DASHBOARD
+  // Jika belum login, tidak usah render apa-apa (karena sudah redirect)
+  if (!isLoggedIn) {
+    return null;
+  }
+
   return (
     <main className="min-h-screen bg-[#FDFCF0]">
-      <NavbarSupir onLogout={handleLogout} />
+      <NavbarSupir onLogout={() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
+      }} />
 
       <div className="max-w-xl mx-auto py-6 px-5">
         {/* Nama Driver */}
         <div className="mb-6">
           <p className="text-slate-400 text-sm font-medium">Selamat Bekerja,</p>
-          <h1 className="text-2xl font-black text-slate-800 uppercase">{driverData?.name || 'Driver'}</h1>
+          <h1 className="text-2xl font-black text-slate-800 uppercase">{user?.fullName || 'Driver'}</h1>
         </div>
 
         {/* SEKSI STATUS TUGAS */}
@@ -97,9 +137,7 @@ export default function HalamanSupir() {
           <MenuIcon icon={<ClipboardList className="text-green-700"/>} label="Daftar Tugas" active />
           <MenuIcon icon={<CheckCircle className="text-green-700"/>} label="Riwayat" />
           <MenuIcon icon={<MapIcon className="text-green-700"/>} label="Peta Lokasi" />
-          <MenuIcon icon={<Clock className="text-green-700"/>} label="Status" />
           <MenuIcon icon={<BarChart3 className="text-green-700"/>} label="Statistik" />
-          <MenuIcon icon={<User className="text-green-700"/>} label="Profil" />
         </div>
 
         {/* DAFTAR TUGAS AKTIF */}
@@ -129,7 +167,7 @@ export default function HalamanSupir() {
   );
 }
 
-// Komponen Pendukung agar kode utama bersih
+// Komponen Pendukung
 function StatCard({ icon, count, label, color }: any) {
   const colors: any = {
     orange: "bg-orange-100 text-orange-600",
@@ -155,5 +193,5 @@ function MenuIcon({ icon, label, active = false }: any) {
             </div>
             <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{label}</span>
         </div>
-    )   
+    );
 }
