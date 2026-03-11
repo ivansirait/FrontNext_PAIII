@@ -1,84 +1,153 @@
 "use client";
 import { useState, useRef } from "react";
-import axios from "axios";
-import { Camera, CheckCircle } from "lucide-react";
+import { Camera, CheckCircle, X, Upload } from "lucide-react";
 
-export default function FormSelesai({ report, onSuccess, onCancel }: any) {
-  const [volume, setVolume] = useState("0");
+interface FormSelesaiProps {
+  tugas: any;
+  onSubmit: (data: { volume: number; photo: File | null }) => void;
+  onCancel: () => void;
+}
+
+export default function FormSelesai({ tugas, onSubmit, onCancel }: FormSelesaiProps) {
+  const [volume, setVolume] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const submitSelesai = async () => {
+  const handleSubmit = async () => {
     if (!volume || Number(volume) <= 0) {
-      return alert("Volume wajib diisi");
+      alert("Volume sampah harus diisi dengan benar!");
+      return;
     }
 
     setLoading(true);
-    const formData = new FormData();
-    formData.append("volumeKg", volume);
-    if (photo) formData.append("photoAfter", photo);
-
     try {
-      await axios.post(
-        `http://localhost:5000/laporan/${report.id}/selesai`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      alert("✅ Data berhasil dikirim");
-      onSuccess();
-    } catch {
-      alert("❌ Gagal menyimpan data");
+      await onSubmit({ 
+        volume: Number(volume), 
+        photo 
+      });
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhoto(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    setPreview(null);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
   return (
     <div className="bg-white p-6 rounded-[30px] shadow-xl border border-slate-200">
-      <h2 className="font-black text-lg mb-4">
-        Masukkan Volume Sampah (KG)
-      </h2>
-
-      <input
-        type="number"
-        step="0.1"
-        value={volume}
-        onChange={(e) => setVolume(e.target.value)}
-        className="w-full text-5xl font-black text-center border rounded-2xl p-4 mb-6"
-      />
-
-      <div className="mb-6">
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="w-full flex items-center justify-center gap-2 bg-slate-100 py-4 rounded-2xl font-bold"
-        >
-          <Camera size={18} /> Ambil Foto Bukti
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="font-black text-lg">Selesaikan Tugas</h2>
+        <button onClick={onCancel} className="p-2 hover:bg-slate-100 rounded-full">
+          <X size={20} />
         </button>
+      </div>
+
+      {/* Info Tugas */}
+      <div className="bg-slate-50 p-4 rounded-2xl mb-6">
+        <p className="text-sm font-semibold text-slate-800">{tugas.lokasi || tugas.location}</p>
+        <p className="text-xs text-slate-500 mt-1">{tugas.deskripsi || tugas.description}</p>
+      </div>
+
+      {/* Input Volume */}
+      <div className="mb-6">
+        <label className="block text-sm font-bold text-slate-700 mb-2">
+          Volume Sampah (KG) <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="number"
+          step="0.1"
+          min="0.1"
+          value={volume}
+          onChange={(e) => setVolume(e.target.value)}
+          className="w-full text-3xl font-bold text-center border-2 border-slate-200 rounded-2xl p-4 focus:border-green-500 outline-none"
+          placeholder="0.0"
+        />
+      </div>
+
+      {/* Upload Foto */}
+      <div className="mb-6">
+        <label className="block text-sm font-bold text-slate-700 mb-2">
+          Foto Bukti (opsional)
+        </label>
+        
+        {!preview ? (
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-full flex items-center justify-center gap-2 bg-slate-100 py-6 rounded-2xl font-bold hover:bg-slate-200 transition-colors border-2 border-dashed border-slate-300"
+          >
+            <Camera size={24} /> 
+            <span>Ambil / Pilih Foto</span>
+          </button>
+        ) : (
+          <div className="relative">
+            <img 
+              src={preview} 
+              alt="Preview" 
+              className="w-full h-48 object-cover rounded-2xl"
+            />
+            <button
+              onClick={removePhoto}
+              className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         <input
           type="file"
           accept="image/*"
           capture="environment"
           hidden
           ref={fileRef}
-          onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+          onChange={handlePhotoChange}
         />
+        <p className="text-xs text-slate-400 mt-2">
+          * Foto akan digunakan sebagai bukti penyelesaian tugas
+        </p>
       </div>
 
+      {/* Tombol Aksi */}
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onCancel}
-          className="py-4 rounded-2xl bg-slate-200 font-bold"
+          disabled={loading}
+          className="py-4 rounded-2xl bg-slate-200 font-bold hover:bg-slate-300 transition-colors disabled:opacity-50"
         >
           Batal
         </button>
         <button
-          onClick={submitSelesai}
-          disabled={loading}
-          className="py-4 rounded-2xl bg-green-600 text-white font-bold flex items-center justify-center gap-2"
+          onClick={handleSubmit}
+          disabled={loading || !volume}
+          className="py-4 rounded-2xl bg-green-600 text-white font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <CheckCircle size={18} /> SELESAI
+          {loading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+              <span>Memproses...</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle size={18} /> 
+              <span>SELESAI</span>
+            </>
+          )}
         </button>
       </div>
     </div>

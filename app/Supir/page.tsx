@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-// HAPUS baris ini → import ProtectedRoute from '@/components/ProtectedRoute';
 import NavbarSupir from './components/NavbarSupir';
 import TugasCard from './components/TugasCard';
-import { Truck, ClipboardList, CheckCircle, Clock, Map as MapIcon, BarChart3, User } from 'lucide-react';
+import FormSelesai from './components/FormSelesai';
+import { Truck, ClipboardList, CheckCircle, Clock, Map as MapIcon, BarChart3 } from 'lucide-react';
 
 export default function HalamanSupir() {
   const router = useRouter();
@@ -15,6 +15,8 @@ export default function HalamanSupir() {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [selectedTugas, setSelectedTugas] = useState<any>(null);
+  const [showFormSelesai, setShowFormSelesai] = useState(false);
 
   useEffect(() => {
     // Cek login status
@@ -31,7 +33,6 @@ export default function HalamanSupir() {
       
       // Cek apakah role-nya OPERATOR (supir)
       if (userData.role !== 'OPERATOR') {
-        // Jika bukan supir, redirect ke halaman yang sesuai
         if (userData.role === 'ADMIN') {
           router.push('/admin');
         } else if (userData.role === 'WARGA') {
@@ -42,9 +43,9 @@ export default function HalamanSupir() {
         return;
       }
 
-      // Jika semua ok
       setUser(userData);
       setIsLoggedIn(true);
+      fetchTugas(token);
     } catch (error) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -52,13 +53,45 @@ export default function HalamanSupir() {
     } finally {
       setIsChecking(false);
     }
-    
-    fetchTugas();
   }, [router]);
 
-  const fetchTugas = async () => {
+  // 🔴 PASTIKAN ENDPOINTNYA BENAR
+const fetchTugas = async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    
+    // HARUSNYA PANGGIL INI:
+    const res = await axios.get('http://localhost:5000/api/supir-op/tugas/aduan', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    // BUKAN: /api/laporan atau yang lain
+    setTugasList(res.data.data);
+    
+    // Hitung statistik
+    const data = res.data.data;
+    const total = data.length;
+    const selesai = data.filter((t: any) => t.status === 'SELESAI').length;
+    const proses = data.filter((t: any) => 
+      ['DITERIMA', 'DALAM_PERJALANAN', 'TIBA', 'BEKERJA'].includes(t.status)
+    ).length;
+    const baru = data.filter((t: any) => t.status === 'DITUGASKAN').length;
+
+    setStats({ baru, proses, selesai });
+    
+  } catch (error) {
+    console.error('Error fetch tugas:', error);
+    // Fallback ke data dummy untuk testing
+    setTugasList([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Fallback ke endpoint lama (untuk sementara)
+  const fetchTugasLegacy = async () => {
     try {
-      setLoading(true);
       const res = await axios.get('http://localhost:5000/api/laporan');
       const allData = res.data;
 
@@ -73,25 +106,57 @@ export default function HalamanSupir() {
       );
       setTugasList(filterTugas);
     } catch (err) {
-      console.error("Gagal ambil data");
-    } finally {
-      setLoading(false);
+      console.error("Gagal ambil data legacy");
     }
   };
 
-  const handleSelesai = async (id: string) => {
-    if (confirm("Konfirmasi: Sampah di lokasi ini sudah benar-benar diangkut?")) {
-      try {
-        await axios.patch(`http://localhost:5000/api/laporan/${id}`, { status: "SELESAI" });
-        alert("Status berhasil diperbarui ke SELESAI");
-        fetchTugas(); 
-      } catch (err) {
-        alert("Gagal update status");
+  const handleSelesai = (tugas: any) => {
+    setSelectedTugas(tugas);
+    setShowFormSelesai(true);
+  };
+
+  const handleFormSelesaiSubmit = async (data: { volume: number, photo: File | null }) => {
+    if (!selectedTugas) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('volume', data.volume.toString());
+      if (data.photo) {
+        formData.append('foto', data.photo);
+        formData.append('type', 'AFTER');
       }
+
+      // 🔴 PERBAIKAN: Gunakan endpoint yang benar
+      await axios.post(
+        `http://localhost:5000/api/supir/tugas/${selectedTugas.id}/volume`,
+        { volume: data.volume },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (data.photo) {
+        await axios.post(
+          `http://localhost:5000/api/supir/tugas/${selectedTugas.id}/foto`,
+          formData,
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            } 
+          }
+        );
+      }
+
+      alert('✅ Tugas selesai!');
+      setShowFormSelesai(false);
+      fetchTugas();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Gagal menyelesaikan tugas');
     }
   };
 
-  // Tampilkan loading screen saat pengecekan
+  // Tampilkan loading screen
   if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
@@ -103,10 +168,7 @@ export default function HalamanSupir() {
     );
   }
 
-  // Jika belum login, tidak usah render apa-apa (karena sudah redirect)
-  if (!isLoggedIn) {
-    return null;
-  }
+  if (!isLoggedIn) return null;
 
   return (
     <main className="min-h-screen bg-[#FDFCF0]">
@@ -116,7 +178,7 @@ export default function HalamanSupir() {
         router.push('/login');
       }} />
 
-      <div className="max-w-xl mx-auto py-6 px-5">
+      <div className="max-w-xl mx-auto py-6 px-5 pb-24">
         {/* Nama Driver */}
         <div className="mb-6">
           <p className="text-slate-400 text-sm font-medium">Selamat Bekerja,</p>
@@ -142,10 +204,10 @@ export default function HalamanSupir() {
 
         {/* DAFTAR TUGAS AKTIF */}
         <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold text-slate-800">Tugas Penjemputan</h2>
-            <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-bold">
-                {tugasList.length} Lokasi
-            </span>
+          <h2 className="font-bold text-slate-800">Tugas Penjemputan</h2>
+          <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-bold">
+            {tugasList.length} Lokasi
+          </span>
         </div>
 
         {loading ? (
@@ -153,7 +215,11 @@ export default function HalamanSupir() {
         ) : tugasList.length > 0 ? (
           <div className="grid gap-4">
             {tugasList.map((item: any) => (
-              <TugasCard key={item.id} item={item} onSelesai={handleSelesai} />
+              <TugasCard 
+                key={item.id} 
+                item={item} 
+                onSelesai={() => handleSelesai(item)} 
+              />
             ))}
           </div>
         ) : (
@@ -163,11 +229,24 @@ export default function HalamanSupir() {
           </div>
         )}
       </div>
+
+      {/* Modal Form Selesai */}
+      {showFormSelesai && selectedTugas && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md">
+            <FormSelesai
+              tugas={selectedTugas}
+              onSubmit={handleFormSelesaiSubmit}
+              onCancel={() => setShowFormSelesai(false)}
+            />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-// Komponen Pendukung
+// Komponen StatCard
 function StatCard({ icon, count, label, color }: any) {
   const colors: any = {
     orange: "bg-orange-100 text-orange-600",
@@ -185,13 +264,14 @@ function StatCard({ icon, count, label, color }: any) {
   );
 }
 
+// Komponen MenuIcon
 function MenuIcon({ icon, label, active = false }: any) {
-    return (
-        <div className="flex flex-col items-center gap-1 group cursor-pointer">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${active ? 'bg-green-100 border-2 border-green-500' : 'bg-green-50 hover:bg-green-100'}`}>
-                {icon}
-            </div>
-            <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{label}</span>
-        </div>
-    );
+  return (
+    <div className="flex flex-col items-center gap-1 group cursor-pointer">
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${active ? 'bg-green-100 border-2 border-green-500' : 'bg-green-50 hover:bg-green-100'}`}>
+        {icon}
+      </div>
+      <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{label}</span>
+    </div>
+  );
 }

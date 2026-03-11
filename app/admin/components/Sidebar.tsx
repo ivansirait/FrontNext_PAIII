@@ -3,7 +3,8 @@ import {
   Menu, X, Home, Truck, FileText, Archive, 
   Newspaper, Image, LogOut, ChevronLeft, 
   ChevronRight, LayoutDashboard, Settings,
-  Bell, User, BarChart3, MapPin
+  Bell, User, BarChart3, MapPin, Database,
+  ChevronDown, ChevronUp, Users, Map,Calendar
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -17,6 +18,9 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  
+  // State untuk dropdown master data
+  const [isMasterDataOpen, setIsMasterDataOpen] = useState(true); // Default terbuka
 
   // Handle responsive
   useEffect(() => {
@@ -30,32 +34,66 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const menuItems = [
+  // Menu items utama
+  const mainMenuItems = [
     { 
       id: 'dashboard', 
       label: 'Dashboard', 
       icon: LayoutDashboard,
       color: 'from-blue-500 to-blue-600'
     },
+  { 
+    id: 'peta-sampah', 
+    label: 'Peta GIS', 
+    icon: Map, // Import Map dari lucide-react
+    color: 'from-red-500 to-red-600'
+  },
     { 
       id: 'daftar', 
       label: 'Laporan Masuk', 
       icon: FileText,
       color: 'from-yellow-500 to-yellow-600',
-      badge: 3 // Contoh badge
+      badge: 3
     },
+  { 
+    id: 'penugasan', 
+    label: 'Manajemen Penugasan', 
+    icon: Calendar,
+    color: 'from-purple-500 to-purple-600'
+  },
+
     { 
       id: 'riwayat', 
       label: 'Riwayat', 
       icon: Archive,
       color: 'from-purple-500 to-purple-600'
     },
+  ];
+
+  // Sub-menu untuk Master Data
+  const masterDataItems = [
     { 
-      id: 'supir', 
-      label: 'Kelola Supir', 
-      icon: Truck,
+      id: 'data-supir', 
+      label: 'Data Supir', 
+      icon: Users,
       color: 'from-orange-500 to-orange-600'
     },
+    { 
+      id: 'data-truk', 
+      label: 'Data Truk', 
+      icon: Truck,
+      color: 'from-emerald-500 to-emerald-600'
+    },
+    { 
+      id: 'data-wilayah', 
+      label: 'Data Wilayah', 
+      icon: Map,
+      color: 'from-indigo-500 to-indigo-600'
+    },
+  ];
+
+  // Menu setelah master data
+  const contentMenuItems = [
     { 
       id: 'berita', 
       label: 'Kelola Berita', 
@@ -80,6 +118,10 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
     if (window.innerWidth < 768) {
       setIsMobileOpen(false);
     }
+  };
+
+  const toggleMasterData = () => {
+    setIsMasterDataOpen(!isMasterDataOpen);
   };
 
   const toggleSidebar = () => {
@@ -128,8 +170,9 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
 
             {/* Menu Items */}
             <nav className="flex-1 overflow-y-auto py-6 px-4">
-              <div className="space-y-2">
-                {menuItems.map((item) => {
+              {/* Main Menu */}
+              <div className="space-y-2 mb-4">
+                {mainMenuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeMenu === item.id;
                   return (
@@ -147,9 +190,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
                         <span className="font-medium">{item.label}</span>
                       </div>
                       {item.badge && (
-                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                          isActive ? 'bg-white text-gray-900' : 'bg-red-500 text-white'
-                        }`}>
+                        <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-500 text-white">
                           {item.badge}
                         </span>
                       )}
@@ -158,8 +199,68 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
                 })}
               </div>
 
+              {/* Master Data Section with Dropdown */}
+              <div className="mb-4">
+                <button
+                  onClick={toggleMasterData}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-gray-700/50 transition-all"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Database size={20} />
+                    <span className="font-medium">Manajemen Master Data</span>
+                  </div>
+                  {isMasterDataOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+
+                {/* Sub-menu Master Data */}
+                {isMasterDataOpen && (
+                  <div className="ml-4 mt-2 space-y-1 pl-4 border-l-2 border-gray-700">
+                    {masterDataItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeMenu === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleMenuClick(item.id)}
+                          className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all text-sm ${
+                            isActive
+                              ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
+                              : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
+                          }`}
+                        >
+                          <Icon size={18} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Content Menu */}
+              <div className="space-y-2 mb-4">
+                {contentMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeMenu === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleMenuClick(item.id)}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                        isActive
+                          ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
+                          : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                      }`}
+                    >
+                      <Icon size={20} />
+                      <span className="font-medium">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Divider */}
-              <div className="my-6 border-t border-gray-700" />
+              <div className="my-4 border-t border-gray-700" />
 
               {/* Bottom Menu */}
               <div className="space-y-2">
@@ -241,8 +342,9 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
 
         {/* Menu Items */}
         <nav className="flex-1 overflow-y-auto py-6 px-3">
-          <div className="space-y-2">
-            {menuItems.map((item) => {
+          {/* Main Menu */}
+          <div className="space-y-1 mb-4">
+            {mainMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeMenu === item.id;
               return (
@@ -261,9 +363,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
                     {showFullContent && <span className="font-medium">{item.label}</span>}
                   </div>
                   {showFullContent && item.badge && (
-                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                      isActive ? 'bg-white text-gray-900' : 'bg-red-500 text-white'
-                    }`}>
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-500 text-white">
                       {item.badge}
                     </span>
                   )}
@@ -272,13 +372,126 @@ export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: Sidebar
             })}
           </div>
 
+          {/* Master Data Section */}
+          {showFullContent ? (
+            // Tampilan expanded dengan dropdown
+            <div className="mb-4">
+              <button
+                onClick={toggleMasterData}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-gray-700/50 transition-all"
+              >
+                <div className="flex items-center space-x-3">
+                  <Database size={20} />
+                  <span className="font-medium">Manajemen Master Data</span>
+                </div>
+                {isMasterDataOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {isMasterDataOpen && (
+                <div className="ml-4 mt-2 space-y-1 pl-4 border-l-2 border-gray-700">
+                  {masterDataItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeMenu === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleMenuClick(item.id)}
+                        className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all text-sm ${
+                          isActive
+                            ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
+                            : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
+                        }`}
+                      >
+                        <Icon size={18} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            // Tampilan collapsed (hanya icon)
+            <div className="space-y-2 mb-4">
+              <div 
+                className="flex justify-center px-4 py-3 text-gray-300"
+                title="Manajemen Master Data"
+              >
+                <Database size={20} />
+              </div>
+              {masterDataItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeMenu === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleMenuClick(item.id)}
+                    className={`w-full flex justify-center px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
+                        : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
+                    }`}
+                    title={item.label}
+                  >
+                    <Icon size={20} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Content Menu */}
+          {showFullContent ? (
+            <div className="space-y-1 mb-4">
+              {contentMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeMenu === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleMenuClick(item.id)}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
+                        : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2 mb-4">
+              {contentMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeMenu === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleMenuClick(item.id)}
+                    className={`w-full flex justify-center px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
+                        : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'
+                    }`}
+                    title={item.label}
+                  >
+                    <Icon size={20} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {showFullContent && (
             <>
               {/* Divider */}
-              <div className="my-6 border-t border-gray-700" />
+              <div className="my-4 border-t border-gray-700" />
 
               {/* Bottom Menu */}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {bottomMenuItems.map((item) => {
                   const Icon = item.icon;
                   return (

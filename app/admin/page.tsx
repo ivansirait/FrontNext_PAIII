@@ -10,6 +10,12 @@ import LoginForm from './components/LoginForm';
 import AddOperatorForm from "./components/AddOperatorForm"; 
 import ManagePosts from './components/ManagePosts';
 import ManageGalleries from './components/ManageGalleries';
+import ManageSupir from './components/ManageSupir';
+import ManageTruk from './components/ManageTruk';
+import PetaSampah from './components/PetaSampah';
+import ManageWilayah from './components/ManageWilayah';
+import ManagePenugasan from './components/ManagePenugasan';
+
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -152,7 +158,15 @@ export default function AdminPage() {
     switch (activeMenu) {
       case 'dashboard':
         return <Dashboard laporanList={laporanList} posts={posts} galleries={galleries} />;
-      
+     
+     case 'peta-sampah':
+        return <PetaSampah />;
+
+        // Di dalam switch activeMenu
+case 'penugasan':
+  return <ManagePenugasan />;
+
+
       case 'daftar':
         return (
           <div className="space-y-6">
@@ -183,10 +197,38 @@ export default function AdminPage() {
           </div>
         );
       
-      case 'supir':
+      // case 'supir':
+      //   return (
+      //     <div className="max-w-md mx-auto">
+      //       <AddOperatorForm />
+      //     </div>
+      //   );
+      
+    case 'data-supir':
+        return <ManageSupir />;
+
+          
+    case 'data-truk':
+      return <ManageTruk />; 
+      
+    case 'data-wilayah':
+       return <ManageWilayah />;
+  
+      // <-- TAMBAHKAN: Case untuk Data Wilayah (sementara)
+      // case 'data-wilayah':
+      //   return (
+      //     <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+      //       <h2 className="text-2xl font-bold text-gray-800 mb-2">Halaman Data Wilayah</h2>
+      //       <p className="text-gray-500">Sedang dalam pengembangan</p>
+      //     </div>
+      //   );
+      
+      // <-- TAMBAHKAN: Case untuk Aktif/Nonaktif Kecamatan (sementara)
+      case 'aktif-kecamatan':
         return (
-          <div className="max-w-md mx-auto">
-            <AddOperatorForm />
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Halaman Aktif/Nonaktif Kecamatan</h2>
+            <p className="text-gray-500">Sedang dalam pengembangan</p>
           </div>
         );
       
@@ -225,3 +267,4 @@ export default function AdminPage() {
     </div>
   );
 }
+
