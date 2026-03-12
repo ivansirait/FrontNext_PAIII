@@ -1,7 +1,14 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, Truck, ArrowUp, ArrowDown } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  FileText, CheckCircle, Clock, Truck, 
+  AlertCircle, MapPin, TrendingUp, 
+  Calendar as CalendarIcon, ChevronRight
+} from 'lucide-react';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, AreaChart, Area 
+} from 'recharts';
 import axios from 'axios';
 
 interface DashboardProps {
@@ -23,7 +30,6 @@ export default function Dashboard({ laporanList, posts, galleries }: DashboardPr
   const [grafikData, setGrafikData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch data statistik dari API
   useEffect(() => {
     const fetchDashboardStats = async () => {
       try {
@@ -34,8 +40,6 @@ export default function Dashboard({ laporanList, posts, galleries }: DashboardPr
 
         if (res.data.success) {
           setStats(res.data.data.cards);
-          
-          // Format data grafik
           const formattedGrafik = res.data.data.grafik.map((item: any) => ({
             hari: new Date(item.tanggal).toLocaleDateString('id-ID', { weekday: 'short' }),
             laporan: Number(item.total)
@@ -48,207 +52,250 @@ export default function Dashboard({ laporanList, posts, galleries }: DashboardPr
         setLoading(false);
       }
     };
-
     fetchDashboardStats();
   }, []);
 
-  // Data statistik dari laporan (sudah ada)
   const totalLaporan = laporanList.length;
   const laporanSelesai = laporanList.filter(l => l.status === 'SELESAI').length;
-  const laporanProses = laporanList.filter(l => l.status === 'DIPROSES' || l.status === 'DITINDAKLANJUTI').length;
-  const laporanPending = laporanList.filter(l => l.status === 'PENDING').length;
-  
-  // Persentase
   const persentaseSelesai = totalLaporan ? Math.round((laporanSelesai / totalLaporan) * 100) : 0;
-  const persentaseProses = totalLaporan ? Math.round((laporanProses / totalLaporan) * 100) : 0;
 
-  // Data kinerja wilayah (dari props atau API)
   const kinerjaWilayah = [
-    { nama: 'BALIGE', persentase: 92, status: 'baik' },
-    { nama: 'LAGUBOTI', persentase: 78, status: 'baik' },
-    { nama: 'PORSEA', persentase: 65, status: 'sedang' },
+    { nama: 'BALIGE', persentase: 92, color: 'bg-emerald-500' },
+    { nama: 'LAGUBOTI', persentase: 78, color: 'bg-blue-500' },
+    { nama: 'PORSEA', persentase: 65, color: 'bg-amber-500' },
   ];
 
-  // Jika loading
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
+        <p className="text-gray-500 font-medium animate-pulse">Memuat Data Dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-2xl p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Selamat Datang, Admin!</h1>
-        <p className="text-green-100 text-sm">
-          Berikut ringkasan operasional kebersihan Toba untuk hari ini.
-        </p>
-      </div>
-
-      {/* 4 Card Statistik - PAKAI DATA REAL */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Card 1: Laporan Baru (Pending) */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
-          <p className="text-gray-500 text-sm mb-1">Laporan Baru</p>
-          <div className="flex items-end justify-between">
-            <p className="text-3xl font-bold text-gray-800">{stats.laporanPending || 0}</p>
-            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center">
-              <ArrowUp size={12} className="mr-1" /> {persentaseProses}%
-            </span>
-          </div>
+    <div className="p-1 space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-700">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Ringkasan Operasional</h1>
+          <p className="text-slate-500 mt-1 flex items-center gap-2">
+            <CalendarIcon size={16} /> 
+            {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
         </div>
-
-        {/* Card 2: Selesai Hari Ini */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
-          <p className="text-gray-500 text-sm mb-1">Selesai</p>
-          <div className="flex items-end justify-between">
-            <p className="text-3xl font-bold text-gray-800">{stats.laporanSelesai || 0}</p>
-            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center">
-              <ArrowUp size={12} className="mr-1" /> {persentaseSelesai}%
-            </span>
-          </div>
-        </div>
-
-        {/* Card 3: Dalam Proses */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-yellow-500">
-          <p className="text-gray-500 text-sm mb-1">Dalam Proses</p>
-          <div className="flex items-end justify-between">
-            <p className="text-3xl font-bold text-gray-800">{stats.laporanDiproses || 0}</p>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              Aktif
-            </span>
-          </div>
-        </div>
-
-        {/* Card 4: Truk Aktif */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
-          <p className="text-gray-500 text-sm mb-1">Truk Aktif</p>
-          <div className="flex items-end justify-between">
-            <p className="text-3xl font-bold text-gray-800">
-              {stats.trukAktif || 0}/{stats.totalTruk || 12}
-            </p>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              Armada
-            </span>
-          </div>
+        <div className="flex gap-3">
+            <button className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all active:scale-95">
+              Unduh Laporan
+            </button>
+            <button className="px-4 py-2 bg-green-600 rounded-xl text-sm font-semibold text-white shadow-md shadow-green-200 hover:bg-green-700 transition-all active:scale-95">
+              Kelola Armada
+            </button>
         </div>
       </div>
 
-      {/* Grafik dan Analisa */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Grafik 7 Hari */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Tren Laporan 7 Hari Terakhir</h3>
-          <div className="h-64">
-            {grafikData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={grafikData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="hari" stroke="#888" />
-                  <YAxis stroke="#888" />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="laporan" 
-                    stroke="#16a34a" 
-                    strokeWidth={2}
-                    dot={{ fill: '#16a34a', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                Belum ada data grafik
-              </div>
-            )}
+      {/* Stats Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          label="Laporan Baru" 
+          value={stats.laporanPending} 
+          icon={<AlertCircle className="text-blue-600" />} 
+          subText="Perlu Respon Segera"
+          trend="+5%"
+          color="blue"
+        />
+        <StatCard 
+          label="Selesai" 
+          value={stats.laporanSelesai} 
+          icon={<CheckCircle className="text-emerald-600" />} 
+          subText={`${persentaseSelesai}% Efisiensi`}
+          trend="Stable"
+          color="emerald"
+        />
+        <StatCard 
+          label="Dalam Proses" 
+          value={stats.laporanDiproses} 
+          icon={<Clock className="text-amber-600" />} 
+          subText="Sedang Ditangani"
+          trend="-2%"
+          color="amber"
+        />
+        <StatCard 
+          label="Armada Aktif" 
+          value={`${stats.trukAktif}/${stats.totalTruk}`} 
+          icon={<Truck className="text-purple-600" />} 
+          subText="Unit Beroperasi"
+          trend="Optimal"
+          color="purple"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Chart Section */}
+        <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Analitik Laporan</h3>
+              <p className="text-sm text-slate-500">Statistik 7 hari terakhir</p>
+            </div>
+            <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-bold border border-green-100">
+              <TrendingUp size={14} /> +12.4% Tren
+            </div>
           </div>
-          <p className="text-xs text-gray-400 mt-2">Data 7 hari terakhir</p>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={grafikData}>
+                <defs>
+                  <linearGradient id="colorLaporan" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="hari" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="laporan" 
+                  stroke="#10b981" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorLaporan)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Analisa Wilayah */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Kinerja Wilayah</h3>
-          
-          {/* Kinerja Wilayah - Top 3 */}
-          <div className="space-y-4">
+        {/* Region Performance */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+          <h3 className="text-lg font-bold text-slate-900 mb-6">Kinerja Wilayah</h3>
+          <div className="space-y-6">
             {kinerjaWilayah.map((wilayah, idx) => (
-              <div key={idx}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700">{wilayah.nama}</span>
-                  <span className={`font-bold ${
-                    wilayah.persentase > 80 ? 'text-green-600' :
-                    wilayah.persentase > 60 ? 'text-yellow-600' : 'text-orange-600'
-                  }`}>
-                    {wilayah.persentase}%
-                  </span>
+              <div key={idx} className="group cursor-default">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-green-600 transition-colors">{wilayah.nama}</span>
+                  <span className="text-sm font-extrabold text-slate-900">{wilayah.persentase}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                   <div 
-                    className={`h-2 rounded-full ${
-                      wilayah.persentase > 80 ? 'bg-green-500' : 
-                      wilayah.persentase > 60 ? 'bg-yellow-500' : 'bg-orange-500'
-                    }`}
+                    className={`h-full rounded-full ${wilayah.color} transition-all duration-[1500ms] ease-out shadow-sm`}
                     style={{ width: `${wilayah.persentase}%` }}
-                  ></div>
+                  />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Total Laporan */}
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Total Laporan</span>
-              <span className="font-bold text-gray-800">{totalLaporan}</span>
+          <div className="mt-10 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="flex justify-between items-center text-sm mb-3">
+              <span className="text-slate-500 font-medium">Total Volume</span>
+              <span className="text-slate-900 font-bold">{totalLaporan} Unit</span>
             </div>
-            <div className="flex justify-between text-sm mt-2">
-              <span className="text-gray-500">Truk Tersedia</span>
-              <span className="font-bold text-gray-800">{stats.trukAktif}/{stats.totalTruk}</span>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-500 font-medium">Response Time</span>
+              <span className="text-slate-900 font-bold">~45 Menit</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Laporan Masuk Terbaru */}
-      <div className="bg-white rounded-xl shadow-sm p-5">
-        <h3 className="font-semibold text-gray-800 mb-4">Laporan Masuk Terbaru</h3>
-        
-        {laporanList.length > 0 ? (
-          <div className="space-y-3">
-            {laporanList.slice(0, 5).map((laporan: any) => (
-              <div key={laporan.id} className="flex items-center justify-between border-b border-gray-100 pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <FileText size={18} className="text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">{laporan.jenis_sampah || 'Laporan Sampah'}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(laporan.created_at).toLocaleDateString('id-ID')} • {laporan.lokasi || 'Balige'}
-                    </p>
-                  </div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  laporan.status === 'SELESAI' ? 'bg-green-100 text-green-800' :
-                  laporan.status === 'DIPROSES' ? 'bg-yellow-100 text-yellow-800' :
-                  laporan.status === 'DITINDAKLANJUTI' ? 'bg-blue-100 text-blue-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {laporan.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>Tidak ada laporan masuk</p>
-            <p className="text-sm">Belum ada data laporan yang ditemukan</p>
-          </div>
-        )}
+      {/* Recent Activity Table */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-8 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-900">Laporan Masuk Terbaru</h3>
+          <button className="text-green-600 text-sm font-bold flex items-center gap-1 hover:translate-x-1 transition-transform">
+            Lihat Semua <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="overflow-x-auto px-8 pb-8">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
+                <th className="pb-4">Jenis Laporan</th>
+                <th className="pb-4">Lokasi</th>
+                <th className="pb-4">Tanggal</th>
+                <th className="pb-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 text-sm">
+              {laporanList.slice(0, 5).map((laporan: any) => (
+                <tr key={laporan.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <td className="py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-slate-100">
+                        <FileText size={16} />
+                      </div>
+                      <span className="font-bold text-slate-700">{laporan.jenis_sampah || 'Umum'}</span>
+                    </div>
+                  </td>
+                  <td className="py-4">
+                    <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                      <MapPin size={14} className="text-slate-400" />
+                      {laporan.lokasi || 'Balige'}
+                    </div>
+                  </td>
+                  <td className="py-4 text-slate-500">
+                    {new Date(laporan.created_at).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="py-4">
+                    <StatusBadge status={laporan.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+  );
+}
+
+// Reusable Stat Card Component - Pakai Hover Tailwind
+function StatCard({ label, value, icon, subText, trend, color }: any) {
+  const colorMap: any = {
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    amber: "bg-amber-50 text-amber-600 border-amber-100",
+    purple: "bg-purple-50 text-purple-600 border-purple-100",
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between hover:-translate-y-1 hover:shadow-md transition-all duration-300">
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-2xl border ${colorMap[color]}`}>
+          {icon}
+        </div>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 uppercase tracking-tighter">
+          {trend}
+        </span>
+      </div>
+      <div>
+        <p className="text-3xl font-black text-slate-900 mb-1 leading-none">{value}</p>
+        <p className="text-sm font-bold text-slate-800 tracking-tight">{label}</p>
+        <p className="text-xs text-slate-400 mt-1 font-medium">{subText}</p>
+      </div>
+    </div>
+  );
+}
+
+// Reusable Status Badge Component
+function StatusBadge({ status }: { status: string }) {
+  const styles: any = {
+    SELESAI: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    DIPROSES: "bg-amber-50 text-amber-700 border-amber-200",
+    DITINDAKLANJUTI: "bg-blue-50 text-blue-700 border-blue-200",
+    PENDING: "bg-rose-50 text-rose-700 border-rose-200",
+  };
+
+  return (
+    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border shadow-[0_1px_2px_rgba(0,0,0,0.05)] uppercase tracking-wider ${styles[status] || styles.PENDING}`}>
+      {status}
+    </span>
   );
 }

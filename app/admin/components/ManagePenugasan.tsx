@@ -1,16 +1,21 @@
 "use client";
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { 
   Plus, Edit, Trash2, Search, Calendar, 
-  User, Truck, MapPin, Filter, X, Eye
+  User, Truck, MapPin, Filter, X, Eye,
+  Clock, CheckCircle2, Phone, FileText, RefreshCw,
+  ChevronRight, AlertCircle, Info, MoreHorizontal,
+  LayoutDashboard, ClipboardList, TrendingUp, Users
 } from 'lucide-react';
-import PenugasanDetail from './PenugasanDetail'; // Import komponen detail
+import PenugasanDetail from './PenugasanDetail';
 
+// --- Types & Interfaces ---
 interface Penugasan {
   id: string;
   taskNumber: string;
-  type: string;
+  type: 'ADUAN' | 'RUTIN';
   status: string;
   location: string;
   district: string;
@@ -28,9 +33,12 @@ interface Penugasan {
     id: string;
     description: string;
   };
+  description?: string;
+  notes?: string;
 }
 
 export default function ManagePenugasan() {
+  // --- States ---
   const [penugasanList, setPenugasanList] = useState<Penugasan[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +46,6 @@ export default function ManagePenugasan() {
   const [modalType, setModalType] = useState<'aduan' | 'rutin'>('aduan');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPenugasan, setSelectedPenugasan] = useState<Penugasan | null>(null);
-  const [editingPenugasan, setEditingPenugasan] = useState<Penugasan | null>(null);
   
   const [supirList, setSupirList] = useState([]);
   const [trukList, setTrukList] = useState([]);
@@ -47,8 +54,6 @@ export default function ManagePenugasan() {
   const [filter, setFilter] = useState({
     status: '',
     type: '',
-    startDate: '',
-    endDate: ''
   });
 
   const [formData, setFormData] = useState({
@@ -64,24 +69,21 @@ export default function ManagePenugasan() {
     notes: ''
   });
 
-  // Fetch data
+  // --- API Calls ---
   const fetchPenugasan = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
       let url = 'http://localhost:5000/api/penugasan?';
       if (filter.status) url += `status=${filter.status}&`;
       if (filter.type) url += `type=${filter.type}&`;
-      if (filter.startDate) url += `startDate=${filter.startDate}&`;
-      if (filter.endDate) url += `endDate=${filter.endDate}&`;
 
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPenugasanList(res.data.data);
     } catch (error) {
-      console.error('Error fetching penugasan:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -90,150 +92,35 @@ export default function ManagePenugasan() {
   const fetchDropdownData = async () => {
     try {
       const token = localStorage.getItem('token');
-      
-      // Fetch supir
-      const supirRes = await axios.get('http://localhost:5000/api/penugasan/supir', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSupirList(supirRes.data.data);
-
-      // Fetch truk
-      const trukRes = await axios.get('http://localhost:5000/api/penugasan/truk', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTrukList(trukRes.data.data);
-
-      // Fetch laporan pending
-      const laporanRes = await axios.get('http://localhost:5000/api/laporan?status=PENDING', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLaporanList(laporanRes.data);
+      const [supir, truk, laporan] = await Promise.all([
+        axios.get('http://localhost:5000/api/penugasan/supir', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://localhost:5000/api/penugasan/truk', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://localhost:5000/api/laporan?status=PENDING', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setSupirList(supir.data.data);
+      setTrukList(truk.data.data);
+      setLaporanList(laporan.data);
     } catch (error) {
-      console.error('Error fetching dropdown:', error);
+      console.error('Error loading dropdowns:', error);
     }
   };
 
   useEffect(() => {
     fetchPenugasan();
     fetchDropdownData();
-  }, []);
+  }, [filter.status, filter.type]);
 
-  // Filter pencarian
-  const filteredPenugasan = penugasanList.filter(item => 
-    item.taskNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.driver?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // --- Helpers ---
+  const filteredPenugasan = useMemo(() => {
+    return penugasanList.filter(item => 
+      item.taskNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.driver?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [penugasanList, searchTerm]);
 
-  // Handle form input
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  // Handle pilih laporan
-  const handleSelectLaporan = (laporan: any) => {
-    setFormData({
-      ...formData,
-      reportId: laporan.id,
-      location: laporan.description || '',
-      latitude: laporan.latitude,
-      longitude: laporan.longitude,
-      district: laporan.district || '',
-      description: laporan.description
-    });
-  };
-
-  // Handle submit create
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      const endpoint = modalType === 'aduan' 
-        ? 'http://localhost:5000/api/penugasan/aduan'
-        : 'http://localhost:5000/api/penugasan/rutin';
-
-      await axios.post(endpoint, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      alert('Penugasan berhasil dibuat!');
-      setShowModal(false);
-      fetchPenugasan();
-      resetForm();
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Gagal membuat penugasan');
-    }
-  };
-
-  // 🔴 FUNGSI EDIT - Buka modal edit
-  const handleEdit = (penugasan: Penugasan) => {
-    setEditingPenugasan(penugasan);
-    setFormData({
-      reportId: penugasan.report?.id || '',
-      driverId: penugasan.driver.id,
-      truckId: penugasan.truck?.id || '',
-      scheduledAt: penugasan.scheduledAt.slice(0, 16), // Format untuk datetime-local
-      location: penugasan.location,
-      latitude: '', // Isi dari data yang ada
-      longitude: '',
-      district: penugasan.district,
-      description: penugasan.description || '',
-      notes: ''
-    });
-    setModalType(penugasan.type === 'ADUAN' ? 'aduan' : 'rutin');
-    setShowModal(true);
-  };
-
-  // 🔴 FUNGSI UPDATE - Submit edit
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPenugasan) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/penugasan/${editingPenugasan.id}`, 
-        formData, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      alert('Penugasan berhasil diperbarui!');
-      setShowModal(false);
-      setEditingPenugasan(null);
-      fetchPenugasan();
-      resetForm();
-    } catch (error) {
-      console.error('Error updating:', error);
-      alert('Gagal memperbarui penugasan');
-    }
-  };
-
-  // 🔴 FUNGSI DELETE - Hapus penugasan
-  const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus penugasan ini?')) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/penugasan/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      alert('Penugasan berhasil dihapus!');
-      fetchPenugasan();
-    } catch (error) {
-      console.error('Error deleting:', error);
-      alert('Gagal menghapus penugasan');
-    }
-  };
-
-  // 🔴 FUNGSI DETAIL - Lihat detail
-  const handleViewDetail = (penugasan: Penugasan) => {
-    setSelectedPenugasan(penugasan);
-    setShowDetailModal(true);
+  const handleInputChange = (e: any) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const resetForm = () => {
@@ -242,198 +129,256 @@ export default function ManagePenugasan() {
       location: '', latitude: '', longitude: '', district: '',
       description: '', notes: ''
     });
-    setEditingPenugasan(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = modalType === 'aduan' 
+        ? 'http://localhost:5000/api/penugasan/aduan'
+        : 'http://localhost:5000/api/penugasan/rutin';
+
+      await axios.post(endpoint, formData, { headers: { Authorization: `Bearer ${token}` } });
+      setShowModal(false);
+      fetchPenugasan();
+      resetForm();
+    } catch (error) {
+      alert('Gagal menyimpan penugasan');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Hapus penugasan ini?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/penugasan/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchPenugasan();
+    } catch (error) {
+      alert('Gagal menghapus');
+    }
+  };
+
+  // --- UI Sub-Components ---
+  const StatusBadge = ({ status }: { status: string }) => {
+    const styles: any = {
+      SELESAI: "bg-emerald-100 text-emerald-700 border-emerald-200 ring-emerald-500/20",
+      DITUGASKAN: "bg-blue-100 text-blue-700 border-blue-200 ring-blue-500/20",
+      DALAM_PERJALANAN: "bg-indigo-100 text-indigo-700 border-indigo-200 ring-indigo-500/20",
+      BEKERJA: "bg-amber-100 text-amber-700 border-amber-200 ring-amber-500/20",
+      DEFAULT: "bg-slate-100 text-slate-600 border-slate-200"
+    };
+    return (
+      <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide border ring-1 ${styles[status] || styles.DEFAULT}`}>
+        {status.replace('_', ' ')}
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Manajemen Penugasan</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Kelola penugasan supir untuk pengangkutan sampah
-            </p>
+    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans antialiased pb-20">
+      {/* Header Section */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-200">
+              <ClipboardList className="text-white" size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Manajemen Penugasan</h1>
+              <div className="flex items-center gap-2 text-slate-500 text-sm mt-0.5">
+                <span className="flex items-center gap-1"><Truck size={14}/> {trukList.length} Armada</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                <span className="flex items-center gap-1"><Users size={14}/> {supirList.length} Driver Aktif</span>
+              </div>
+            </div>
           </div>
-          
-          <div className="flex gap-2">
-            <button
-              onClick={() => { 
-                setModalType('aduan'); 
-                setEditingPenugasan(null);
-                resetForm();
-                setShowModal(true); 
-              }}
-              className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-all flex items-center gap-2"
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => { setModalType('aduan'); setShowModal(true); }}
+              className="group flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200"
             >
-              <Plus size={18} />
-              <span>Tugas Aduan</span>
+              <Plus size={18} className="text-indigo-600 group-hover:scale-110 transition-transform" /> 
+              Tugas Aduan
             </button>
-            <button
-              onClick={() => { 
-                setModalType('rutin'); 
-                setEditingPenugasan(null);
-                resetForm();
-                setShowModal(true); 
-              }}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all flex items-center gap-2"
+            <button 
+              onClick={() => { setModalType('rutin'); setShowModal(true); }}
+              className="group flex items-center gap-2 bg-slate-900 hover:bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 shadow-xl shadow-slate-200"
             >
-              <Plus size={18} />
-              <span>Tugas Rutin</span>
+              <Calendar size={18} className="group-hover:rotate-12 transition-transform" /> 
+              Tugas Rutin
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Search & Filter */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Cari nomor tugas, lokasi, atau supir..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-          <select
-            value={filter.status}
-            onChange={(e) => {
-              setFilter({...filter, status: e.target.value});
-              fetchPenugasan();
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          >
-            <option value="">Semua Status</option>
-            <option value="DITUGASKAN">Ditugaskan</option>
-            <option value="DITERIMA">Diterima</option>
-            <option value="DALAM_PERJALANAN">Dalam Perjalanan</option>
-            <option value="TIBA">Tiba</option>
-            <option value="BEKERJA">Bekerja</option>
-            <option value="SELESAI">Selesai</option>
-          </select>
-          <select
-            value={filter.type}
-            onChange={(e) => {
-              setFilter({...filter, type: e.target.value});
-              fetchPenugasan();
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          >
-            <option value="">Semua Tipe</option>
-            <option value="ADUAN">Aduan</option>
-            <option value="RUTIN">Rutin</option>
-          </select>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+        {/* Modern Statistics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {[
+            { label: 'Total Tugas', val: penugasanList.length, icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Dalam Proses', val: penugasanList.filter(p => p.status !== 'SELESAI').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Selesai', val: penugasanList.filter(p => p.status === 'SELESAI').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Driver On-Duty', val: new Set(penugasanList.filter(p => p.status !== 'SELESAI').map(p => p.driver?.id)).size, icon: User, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          ].map((stat, i) => (
+            <div key={i} className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                  <p className="text-3xl font-black text-slate-900">{stat.val}</p>
+                </div>
+                <div className={`${stat.bg} ${stat.color} p-3 rounded-2xl`}>
+                  <stat.icon size={24} />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
+                <TrendingUp size={12} /> +12% vs Kemarin
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+        {/* Content Table Area */}
+        <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden transition-all">
+          {/* Enhanced Toolbar */}
+          <div className="p-6 bg-white border-b border-slate-50 flex flex-col lg:flex-row gap-4 justify-between items-center">
+            <div className="relative w-full lg:max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <input 
+                type="text" 
+                placeholder="Cari ID, lokasi, atau nama driver..."
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-medium"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <div className="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100">
+                <select 
+                  className="bg-transparent px-4 py-2 text-sm font-bold text-slate-600 outline-none cursor-pointer"
+                  onChange={(e) => setFilter({...filter, status: e.target.value})}
+                >
+                  <option value="">Semua Status</option>
+                  <option value="DITUGASKAN">Ditugaskan</option>
+                  <option value="SELESAI">Selesai</option>
+                </select>
+              </div>
+              <button 
+                onClick={fetchPenugasan} 
+                className="p-3 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 rounded-xl transition-all border border-slate-100"
+                title="Refresh Data"
+              >
+                <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
-        ) : filteredPenugasan.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            Tidak ada data penugasan
-          </div>
-        ) : (
+
+          {/* Styled Table */}
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    No. Tugas
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipe
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Lokasi
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supir
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Jadwal
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Aksi
-                  </th>
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-8 py-5 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Task Info</th>
+                  <th className="px-6 py-5 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Lokasi</th>
+                  <th className="px-6 py-5 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Driver & Armada</th>
+                  <th className="px-6 py-5 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Jadwal</th>
+                  <th className="px-6 py-5 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-center">Status</th>
+                  <th className="px-8 py-5 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPenugasan.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
-                      {item.taskNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        item.type === 'ADUAN' 
-                          ? 'bg-orange-100 text-orange-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {item.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{item.location}</div>
-                      <div className="text-xs text-gray-500">{item.district}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <User size={14} className="text-gray-400 mr-2" />
-                        <span className="text-sm">{item.driver?.fullName}</span>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-32">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-slate-400 font-bold text-sm">Menyinkronkan data...</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {new Date(item.scheduledAt).toLocaleString('id-ID')}
+                  </tr>
+                ) : filteredPenugasan.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-20 text-center">
+                      <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                        <Search size={32} />
+                      </div>
+                      <p className="text-slate-500 font-bold">Data tidak ditemukan</p>
+                      <p className="text-slate-400 text-sm">Coba ubah kata kunci atau filter Anda</p>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        item.status === 'SELESAI' ? 'bg-green-100 text-green-800' :
-                        item.status === 'DITUGASKAN' ? 'bg-yellow-100 text-yellow-800' :
-                        item.status === 'DITERIMA' ? 'bg-blue-100 text-blue-800' :
-                        item.status === 'DALAM_PERJALANAN' ? 'bg-purple-100 text-purple-800' :
-                        item.status === 'TIBA' ? 'bg-indigo-100 text-indigo-800' :
-                        item.status === 'BEKERJA' ? 'bg-orange-100 text-orange-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {item.status}
-                      </span>
+                  </tr>
+                ) : filteredPenugasan.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-all group">
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">#{item.taskNumber}</span>
+                        <div className="mt-1">
+                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter ${item.type === 'ADUAN' ? 'text-orange-600 bg-orange-100' : 'text-blue-600 bg-blue-100'}`}>
+                            {item.type}
+                          </span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        {/* 🔴 TOMBOL DETAIL - SEKARANG BERFUNGSI */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1 bg-slate-100 p-1.5 rounded-lg text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-50 transition-colors">
+                          <MapPin size={16} />
+                        </div>
+                        <div className="max-w-[180px]">
+                          <p className="text-sm font-bold text-slate-700 truncate" title={item.location}>{item.location}</p>
+                          <p className="text-xs text-slate-400 font-medium">{item.district}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-black text-sm border border-white shadow-sm">
+                            {item.driver?.fullName?.charAt(0)}
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-lg shadow-sm">
+                             <Truck size={12} className="text-indigo-500" />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800 leading-tight">{item.driver?.fullName}</p>
+                          <p className="text-[11px] text-indigo-600 font-extrabold uppercase tracking-tight mt-0.5">
+                            {item.truck?.plateNumber || 'TANPA TRUK'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="bg-slate-50 px-3 py-2 rounded-xl w-fit border border-slate-100">
+                        <div className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                          <Calendar size={12} className="text-slate-400" />
+                          {new Date(item.scheduledAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1.5 mt-0.5">
+                          <Clock size={12} className="text-slate-400" />
+                          {new Date(item.scheduledAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button 
-                          onClick={() => handleViewDetail(item)}
-                          className="text-blue-600 hover:text-blue-900 bg-blue-50 p-2 rounded-lg hover:bg-blue-100 transition-colors"
+                          onClick={() => { setSelectedPenugasan(item); setShowDetailModal(true); }} 
+                          className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                           title="Lihat Detail"
                         >
-                          <Eye size={16} />
+                          <Eye size={18} />
                         </button>
-                        
-                        {/* 🔴 TOMBOL EDIT - SEKARANG BERFUNGSI */}
                         <button 
-                          onClick={() => handleEdit(item)}
-                          className="text-green-600 hover:text-green-900 bg-green-50 p-2 rounded-lg hover:bg-green-100 transition-colors"
-                          title="Edit Penugasan"
+                          onClick={() => handleDelete(item.id)} 
+                          className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                          title="Hapus"
                         >
-                          <Edit size={16} />
-                        </button>
-                        
-                        {/* 🔴 TOMBOL HAPUS - SEKARANG BERFUNGSI */}
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          className="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-lg hover:bg-red-100 transition-colors"
-                          title="Hapus Penugasan"
-                        >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
@@ -442,178 +387,112 @@ export default function ManagePenugasan() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      </main>
 
-      {/* Modal Form Create/Edit */}
+      {/* Modern Modal Form */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900">
-                {editingPenugasan ? 'Edit Penugasan' : (modalType === 'aduan' ? 'Buat Tugas dari Aduan' : 'Buat Tugas Rutin')}
-              </h3>
-              <button onClick={() => {
-                setShowModal(false);
-                setEditingPenugasan(null);
-                resetForm();
-              }} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-white">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${modalType === 'aduan' ? 'bg-orange-100 text-orange-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                  {modalType === 'aduan' ? <FileText size={20}/> : <Calendar size={20}/>}
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-lg leading-none">
+                    {modalType === 'aduan' ? 'Buat Tugas Aduan' : 'Jadwal Tugas Rutin'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider">Input Data Penugasan</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setShowModal(false); resetForm(); }} 
+                className="p-2 hover:bg-slate-100 text-slate-400 rounded-full transition-colors"
+              >
+                <X size={24} />
               </button>
             </div>
-
-            <form onSubmit={editingPenugasan ? handleUpdate : handleSubmit} className="p-6 space-y-4">
-              {modalType === 'aduan' && !editingPenugasan && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pilih Laporan <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="reportId"
-                    value={formData.reportId}
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {modalType === 'aduan' && (
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Laporan Pending</label>
+                  <select 
+                    name="reportId" 
                     onChange={(e) => {
-                      const selected = laporanList.find((l: any) => l.id === e.target.value);
-                      if (selected) handleSelectLaporan(selected);
+                      const sel = laporanList.find((l:any) => l.id === e.target.value);
+                      if(sel) {
+                        setFormData({
+                          ...formData,
+                          reportId: sel.id,
+                          location: sel.description || '',
+                          district: sel.district || '',
+                          description: sel.description
+                        });
+                      }
                     }}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all"
                   >
-                    <option value="">-- Pilih Laporan --</option>
-                    {laporanList.map((l: any) => (
-                      <option key={l.id} value={l.id}>
-                        {l.description?.substring(0, 50)}... ({l.district})
-                      </option>
+                    <option value="">-- Cari Laporan --</option>
+                    {laporanList.map((l:any) => (
+                      <option key={l.id} value={l.id}>{l.district} - {l.description?.substring(0,40)}...</option>
                     ))}
                   </select>
                 </div>
               )}
 
-              {(modalType === 'rutin' || editingPenugasan) && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Lokasi <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      placeholder="Alamat lengkap"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Latitude
-                      </label>
-                      <input
-                        type="text"
-                        name="latitude"
-                        value={formData.latitude}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        placeholder="-6.123456"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Longitude
-                      </label>
-                      <input
-                        type="text"
-                        name="longitude"
-                        value={formData.longitude}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        placeholder="106.123456"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pilih Supir <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="driverId"
-                  value={formData.driverId}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">-- Pilih Supir --</option>
-                  {supirList.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.fullName}</option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Lokasi Kerja</label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input 
+                    type="text" name="location" value={formData.location} onChange={handleInputChange}
+                    placeholder="Masukkan alamat lengkap..."
+                    className="w-full pl-12 pr-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all shadow-inner"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pilih Truk (Opsional)
-                </label>
-                <select
-                  name="truckId"
-                  value={formData.truckId}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">-- Tanpa Truk --</option>
-                  {trukList.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.plateNumber}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Driver</label>
+                  <select name="driverId" onChange={handleInputChange} required className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all">
+                    <option value="">Pilih Driver</option>
+                    {supirList.map((s:any) => <option key={s.id} value={s.id}>{s.fullName}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Armada (Truk)</label>
+                  <select name="truckId" onChange={handleInputChange} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all">
+                    <option value="">Pilih Truk</option>
+                    {trukList.map((t:any) => <option key={t.id} value={t.id}>{t.plateNumber}</option>)}
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Jadwal <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  name="scheduledAt"
-                  value={formData.scheduledAt}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Waktu Pelaksanaan</label>
+                <input 
+                  type="datetime-local" name="scheduledAt" onChange={handleInputChange} required
+                  className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Catatan
-                </label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  placeholder="Catatan tambahan untuk supir..."
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Instruksi Khusus</label>
+                <textarea 
+                  name="notes" onChange={handleInputChange} rows={3}
+                  placeholder="Contoh: Ambil sampah di bak penampungan belakang pasar..."
+                  className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all resize-none"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
-                >
-                  {editingPenugasan ? 'Update Penugasan' : 'Buat Penugasan'}
+              <div className="flex gap-4 pt-4">
+                <button type="submit" className="flex-[2] bg-slate-900 text-white py-4 rounded-2xl font-black text-sm hover:bg-indigo-600 shadow-xl shadow-slate-200 transition-all active:scale-[0.98]">
+                  Konfirmasi Penugasan
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingPenugasan(null);
-                    resetForm();
-                  }}
-                  className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
-                >
+                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 bg-white border-2 border-slate-100 text-slate-500 py-4 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all">
                   Batal
                 </button>
               </div>
@@ -622,14 +501,11 @@ export default function ManagePenugasan() {
         </div>
       )}
 
-      {/* Modal Detail */}
+      {/* Detail Modal */}
       {showDetailModal && selectedPenugasan && (
-        <PenugasanDetail
-          penugasan={selectedPenugasan}
-          onClose={() => {
-            setShowDetailModal(false);
-            setSelectedPenugasan(null);
-          }}
+        <PenugasanDetail 
+          penugasan={selectedPenugasan} 
+          onClose={() => { setShowDetailModal(false); setSelectedPenugasan(null); }} 
         />
       )}
     </div>
