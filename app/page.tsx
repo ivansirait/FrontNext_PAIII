@@ -31,39 +31,50 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white selection:bg-green-100 selection:text-green-900">
       
-      {/* NAVBAR - Added Glassmorphism */}
-      <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl z-50">
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl px-6 md:px-8 h-20 flex justify-between items-center border border-white/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0">
-              <img src="/dlh.png" alt="Logo DLH Toba" className="w-full h-full object-contain" />
-            </div>
-            <div className="leading-tight">
-              <h1 className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight">
-                Dinas Lingkungan Hidup
-              </h1>
-              <p className="text-[10px] md:text-xs text-green-600 font-bold tracking-widest uppercase">Kabupaten Toba</p>
-            </div>
-          </div>
-          
-          <div className="hidden lg:flex gap-8 font-semibold text-slate-600">
-            {['Tentang', 'Berita', 'Galeri', 'Visi', 'Kontak'].map((item) => (
-              <Link key={item} href={`#${item.toLowerCase()}`} className="hover:text-green-600 transition-colors">
-                {item}
-              </Link>
-            ))}
-          </div>
+    {/* NAVBAR - Updated to Full Width */}
+<nav className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
+  <div className="max-w-[1440px] mx-auto px-6 md:px-10 h-20 flex justify-between items-center">
+    
+    {/* Brand Logo & Name */}
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0">
+        <img src="/dlh.png" alt="Logo DLH Toba" className="w-full h-full object-contain" />
+      </div>
+      <div className="leading-tight">
+        <h1 className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight">
+          Dinas Lingkungan Hidup
+        </h1>
+        <p className="text-[10px] md:text-xs text-green-600 font-bold tracking-widest uppercase">
+          Kabupaten Toba
+        </p>
+      </div>
+    </div>
+    
+    {/* Navigation Links */}
+    <div className="hidden lg:flex gap-8 font-semibold text-slate-600">
+      {['Tentang', 'Berita', 'Galeri', 'Visi', 'Kontak'].map((item) => (
+        <Link 
+          key={item} 
+          href={`#${item.toLowerCase()}`} 
+          className="hover:text-green-600 transition-colors relative group"
+        >
+          {item}
+          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-green-600 transition-all group-hover:w-full"></span>
+        </Link>
+      ))}
+    </div>
 
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="hidden sm:block text-slate-600 hover:text-green-600 font-bold px-4">
-              Login
-            </Link>
-            <Link href="/login" className="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200 active:scale-95">
-              Lapor!
-            </Link>
-          </div>
-        </div>
-      </nav>
+    {/* Actions */}
+    <div className="flex items-center gap-3">
+      <Link href="/login" className="hidden sm:block text-slate-600 hover:text-green-600 font-bold px-4">
+        Login
+      </Link>
+      <Link href="/login" className="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200 active:scale-95">
+        Lapor!
+      </Link>
+    </div>
+  </div>
+</nav>
 
       {/* HERO SECTION - Fixed Overlay & Layout */}
       <header className="relative min-h-[85vh] flex items-center justify-center px-6 overflow-hidden">
@@ -78,10 +89,6 @@ export default function HomePage() {
         
         <div className="container mx-auto px-6 relative z-10">
           <div className="max-w-3xl text-white">
-            <div className="inline-flex items-center gap-2 bg-green-500/20 backdrop-blur-md border border-green-400/30 px-4 py-2 rounded-full mb-6">
-              <Leaf size={16} className="text-green-400" />
-              <span className="text-xs md:text-sm font-bold tracking-wider uppercase">Lestari Alam, Indah Toba</span>
-            </div>
             <h1 className="text-5xl md:text-7xl font-black mb-6 leading-[1.1] tracking-tighter">
               Menjaga Kebersihan <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">

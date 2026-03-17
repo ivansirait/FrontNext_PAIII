@@ -1,12 +1,10 @@
 "use client";
 import { 
-  Menu, X, Truck, FileText, Archive, 
-  Newspaper, Image, LogOut, ChevronLeft, 
-  ChevronRight, LayoutDashboard, Settings,
-  User, Database, ChevronDown, ChevronUp, 
-  Users, Map, Calendar, ClipboardList, AlertCircle
+  Menu, X, Truck, FileText, Archive, Newspaper, Image as ImageIcon, LogOut, 
+  ChevronLeft, LayoutDashboard, User, Database, ChevronDown, 
+  ChevronUp, Users, Map, Calendar, ClipboardList, AlertCircle
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface SidebarProps {
   activeMenu: string;
@@ -16,214 +14,205 @@ interface SidebarProps {
 
 export default function Sidebar({ activeMenu, setActiveMenu, onLogout }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  
-  // State untuk dropdown
-  const [isMasterDataOpen, setIsMasterDataOpen] = useState(true);
-  const [isTaskManagementOpen, setIsTaskManagementOpen] = useState(true); // Dropdown Manajemen Tugas
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ penugasan: true, data: true });
 
-  // Handle responsive
+  // --- LOGIKA RESIZE ---
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setIsCollapsed(false); 
+      } else if (width < 1280) {
         setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
       }
+      if (width >= 768) setIsMobileOpen(false);
     };
+
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const mainMenuItems = [
-    { 
-      id: 'dashboard', 
-      label: 'Dashboard', 
-      icon: LayoutDashboard,
-      color: 'from-blue-500 to-blue-600'
+  const isExpanded = isMobileOpen || (isHovered || !isCollapsed);
+
+  const menuConfig = useMemo(() => [
+    {
+      group: "Menu Utama",
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'from-cyan-400 to-blue-600' },
+        { id: 'daftar', label: 'Laporan Masuk', icon: FileText, color: 'from-orange-400 to-red-600', badge: 3 },
+        { id: 'peta-sampah', label: 'Peta GIS', icon: Map, color: 'from-emerald-400 to-lime-500' },
+      ]
     },
-
-    { 
-      id: 'daftar', 
-      label: 'Laporan Masuk', 
-      icon: FileText,
-      color: 'from-yellow-500 to-yellow-600',
-      badge: 3
+    {
+      group: "Manajemen Tugas",
+      id: 'penugasan',
+      icon: Calendar,
+      items: [
+        { id: 'penugasan', label: 'Tugas Harian', icon: ClipboardList, color: 'from-violet-400 to-purple-700' },
+        { id: 'penugasan', label: 'Tugas Aduan', icon: AlertCircle, color: 'from-rose-400 to-red-700' },
+      ]
     },
-        { 
-      id: 'peta-sampah', 
-      label: 'Peta GIS', 
-      icon: Map,
-      color: 'from-red-500 to-red-600'
+    {
+      group: "Master Data",
+      id: 'data',
+      icon: Database,
+      items: [
+        { id: 'data-supir', label: 'Data Supir', icon: Users, color: 'from-sky-400 to-indigo-600' },
+        { id: 'data-truk', label: 'Data Truk', icon: Truck, color: 'from-amber-400 to-orange-600' },
+        { id: 'data-wilayah', label: 'Data Wilayah', icon: Map, color: 'from-teal-400 to-green-600' },
+      ]
     },
-    
-  ];
+    {
+      group: "Konten",
+      items: [
+        { id: 'berita', label: 'Kelola Berita', icon: Newspaper, color: 'from-green-500 to-green-600' },
+        { id: 'galeri', label: 'Kelola Galeri', icon: ImageIcon, color: 'from-pink-500 to-pink-600' },
+      ]
+    }
+  ], []);
 
-  // Sub-menu untuk Manajemen Tugas
-  const taskMenuItems = [
-    { 
-      id: 'penugasan', 
-      label: 'Tugas Harian', 
-      icon: ClipboardList,
-      color: 'from-purple-500 to-purple-600'
-    },
-    { 
-      id: 'penugasan', 
-      label: 'Tugas Aduan', 
-      icon: AlertCircle,
-      color: 'from-pink-500 to-pink-600'
-    },
-  ];
-
-  const masterDataItems = [
-    { id: 'data-supir', label: 'Data Supir', icon: Users, color: 'from-orange-500 to-orange-600' },
-    { id: 'data-truk', label: 'Data Truk', icon: Truck, color: 'from-emerald-500 to-emerald-600' },
-    { id: 'data-wilayah', label: 'Data Wilayah', icon: Map, color: 'from-indigo-500 to-indigo-600' },
-  ];
-
-  const contentMenuItems = [
-    { id: 'riwayat', label: 'Riwayat', icon: Archive, color: 'from-gray-500 to-gray-600' },
-    { id: 'berita', label: 'Kelola Berita', icon: Newspaper, color: 'from-green-500 to-green-600' },
-    { id: 'galeri', label: 'Kelola Galeri', icon: Image, color: 'from-pink-500 to-pink-600' },
-  ];
-
-  const bottomMenuItems = [
-    { id: 'settings', label: 'Pengaturan', icon: Settings },
-    { id: 'profile', label: 'Profil', icon: User },
-  ];
-
-  const handleMenuClick = (menuId: string) => {
-    setActiveMenu(menuId);
-    if (window.innerWidth < 768) setIsMobileOpen(false);
-  };
-
-  // Reusable Nav Item Component untuk menghindari duplikasi kode
-  const NavItem = ({ item, isSubItem = false, collapsed = false }: { item: any, isSubItem?: boolean, collapsed?: boolean }) => {
-    const Icon = item.icon;
+  const NavItem = ({ item, isSub = false }: { item: any; isSub?: boolean }) => {
     const isActive = activeMenu === item.id;
-    const showLabel = !collapsed || isHovered || isMobileOpen;
-
     return (
       <button
-        onClick={() => handleMenuClick(item.id)}
-        className={`w-full flex items-center ${showLabel ? 'justify-between px-4' : 'justify-center'} py-2.5 rounded-xl transition-all ${
-          isSubItem ? 'text-sm mb-1' : 'mb-2'
-        } ${
-          isActive
-            ? `bg-gradient-to-r ${item.color} text-white shadow-lg`
-            : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
-        }`}
-        title={!showLabel ? item.label : ''}
+        onClick={() => { setActiveMenu(item.id); if(isMobileOpen) setIsMobileOpen(false); }}
+        className={`w-full flex items-center group relative transition-all duration-300 rounded-xl mb-1
+          ${isExpanded ? 'px-3 py-2' : 'justify-center py-2'} 
+          ${isActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
       >
-        <div className={`flex items-center ${showLabel ? 'space-x-3' : ''}`}>
-          <Icon size={isSubItem ? 18 : 20} />
-          {showLabel && <span className="font-medium">{item.label}</span>}
+        {isActive && <div className="absolute left-0 w-1 h-5 bg-green-500 rounded-r-full" />}
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg shrink-0 transition-all ${isActive ? `bg-gradient-to-br ${item.color} text-white shadow-lg shadow-black/20` : 'bg-gray-800/40 group-hover:bg-gray-700'}`}>
+            <item.icon size={isSub ? 16 : 18} />
+          </div>
+          {isExpanded && (
+            <div className="flex justify-between items-center w-full min-w-0">
+              <span className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">{item.label}</span>
+              {item.badge && <span className="bg-red-500 text-[10px] px-1.5 py-0.5 rounded-full text-white ml-2">{item.badge}</span>}
+            </div>
+          )}
         </div>
-        {showLabel && item.badge && (
-          <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-500 text-white">
-            {item.badge}
-          </span>
-        )}
       </button>
     );
   };
 
-  // Mobile Render Logic ... (Singkatnya sama dengan desktop namun selalu Expanded)
-  
-  const showFullContent = !isCollapsed || isHovered;
-
   return (
-    <aside 
-      className={`fixed left-0 top-0 h-full ${isCollapsed && !isHovered ? 'w-20' : 'w-72'} bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 ease-in-out z-30 shadow-2xl`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className="h-full flex flex-col">
-        {/* Header Section */}
-        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
-            {showFullContent ? (
-                <>
-                    <div className="flex items-center space-x-3 overflow-hidden">
-                        <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-xl">CB</div>
-                        <div className="truncate">
-                            <h2 className="text-xl font-bold text-white">Clean<span className="text-green-400">Balige</span></h2>
-                            <p className="text-xs text-gray-400">Administrator</p>
-                        </div>
-                    </div>
-                    <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
-                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                    </button>
-                </>
-            ) : (
-                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto text-white font-bold text-xl">CB</div>
+    <>
+      {/* Mobile Toggle */}
+      {!isMobileOpen && (
+        <button 
+          onClick={() => setIsMobileOpen(true)}
+          className="fixed top-4 left-4 z-[60] md:hidden p-3 bg-green-600 text-white rounded-xl shadow-lg active:scale-95 transition-transform"
+        >
+          <Menu size={22} />
+        </button>
+      )}
+
+      {/* Backdrop */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setIsMobileOpen(false)} />
+      )}
+
+      <aside 
+        className={`fixed left-0 top-0 h-full z-50 bg-[#0F1A1E] border-r border-white/5 transition-all duration-300 ease-in-out flex flex-col
+          ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
+          ${isExpanded ? 'w-72' : 'w-20'}`}
+        onMouseEnter={() => !isMobileOpen && setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Header */}
+        <div className="h-20 flex items-center px-4 border-b border-white/5 shrink-0">
+          <div className="flex items-center gap-3 w-full">
+            <div className="w-10 h-10 bg-white rounded-xl p-1.5 shrink-0 shadow-inner">
+              <img src="/dlh.png" alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            {isExpanded && (
+              <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-500">
+                <h1 className="text-xs font-black text-white leading-tight uppercase">Dinas Lingkungan <span className="text-green-500">Hidup</span></h1>
+                <p className="text-[8px] font-bold text-gray-500 tracking-tighter uppercase">Kabupaten Toba</p>
+              </div>
             )}
+          </div>
+          {isExpanded && !isMobileOpen && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }} 
+              className="ml-auto p-1.5 text-gray-500 hover:text-white bg-white/5 rounded-lg transition-colors"
+            >
+              <ChevronLeft size={18} className={isCollapsed ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3">
-          {/* Main Items */}
-          {mainMenuItems.map(item => <NavItem key={item.id} item={item} collapsed={isCollapsed} />)}
-
-          {/* --- Dropdown Manajemen Tugas --- */}
-          <div className="mb-2">
-            <button
-              onClick={() => showFullContent && setIsTaskManagementOpen(!isTaskManagementOpen)}
-              className={`w-full flex items-center ${showFullContent ? 'justify-between px-4' : 'justify-center'} py-3 rounded-xl text-gray-300 hover:bg-gray-700/50 transition-all`}
-            >
-              <div className={`flex items-center ${showFullContent ? 'space-x-3' : ''}`}>
-                <Calendar size={20} />
-                {showFullContent && <span className="font-medium text-base">Manajemen Tugas</span>}
-              </div>
-              {showFullContent && (isTaskManagementOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />)}
-            </button>
-            
-            {(isTaskManagementOpen || !showFullContent) && (
-              <div className={`${showFullContent ? 'ml-4 mt-1 pl-4 border-l-2 border-gray-700' : 'mt-2'}`}>
-                {taskMenuItems.map(item => (
-                  <NavItem key={item.id} item={item} isSubItem={showFullContent} collapsed={isCollapsed} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* --- Dropdown Manajemen Operasional --- */}
-          <div className="mb-2">
-            <button
-              onClick={() => showFullContent && setIsMasterDataOpen(!isMasterDataOpen)}
-              className={`w-full flex items-center ${showFullContent ? 'justify-between px-4' : 'justify-center'} py-3 rounded-xl text-gray-300 hover:bg-gray-700/50 transition-all`}
-            >
-              <div className={`flex items-center ${showFullContent ? 'space-x-3' : ''}`}>
-                <Database size={20} />
-                {showFullContent && <span className="font-medium text-base">Manajemen Operasional</span>}
-              </div>
-              {showFullContent && (isMasterDataOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />)}
-            </button>
-            
-            {(isMasterDataOpen || !showFullContent) && (
-              <div className={`${showFullContent ? 'ml-4 mt-1 pl-4 border-l-2 border-gray-700' : 'mt-2'}`}>
-                {masterDataItems.map(item => (
-                  <NavItem key={item.id} item={item} isSubItem={showFullContent} collapsed={isCollapsed} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Content Menu */}
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            {contentMenuItems.map(item => <NavItem key={item.id} item={item} collapsed={isCollapsed} />)}
-          </div>
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-4 custom-scrollbar">
+          {menuConfig.map((section, idx) => (
+            <div key={idx} className="space-y-1">
+              {section.id ? (
+                /* Accordion Section */
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => isExpanded && setOpenGroups(p => ({...p, [section.id!]: !p[section.id!]}))}
+                    className={`w-full flex items-center py-2 text-gray-500 hover:text-gray-300 transition-colors ${isExpanded ? 'px-3 justify-between' : 'justify-center'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <section.icon size={16} />
+                      {isExpanded && <span className="text-[10px] font-bold uppercase tracking-widest">{section.group}</span>}
+                    </div>
+                    {isExpanded && (openGroups[section.id!] ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                  </button>
+                  {(openGroups[section.id!] || !isExpanded) && (
+                    <div className={isExpanded ? "ml-2 border-l border-white/5 pl-2" : ""}>
+                      {section.items.map(item => <NavItem key={item.id} item={item} isSub={isExpanded} />)}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Static Section */
+                <div className="space-y-1">
+                  {isExpanded && <p className="px-3 text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2 mt-4">{section.group}</p>}
+                  {section.items.map(item => <NavItem key={item.id} item={item} />)}
+                </div>
+              )}
+            </div>
+          ))}
         </nav>
 
-        {/* Logout Section */}
-        <div className="p-4 border-t border-gray-700">
-          <button
-            onClick={onLogout}
-            className={`w-full flex items-center ${showFullContent ? 'space-x-3 px-4' : 'justify-center'} py-3 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all group`}
-          >
-            <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-            {showFullContent && <span className="font-medium">Keluar</span>}
-          </button>
+        {/* Footer */}
+        <div className="p-3 border-t border-white/5 bg-[#142429]/30">
+          <div className={`flex flex-col gap-2 ${!isExpanded && 'items-center'}`}>
+            {isExpanded && (
+              <div className="flex items-center gap-3 p-2 bg-white/5 rounded-xl">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-green-600 to-emerald-400 flex items-center justify-center text-white shadow-lg">
+                  <User size={14} />
+                </div>
+                <div className="truncate group">
+                  <p className="text-[10px] font-bold text-white uppercase truncate">Admin Toba</p>
+                  <p className="text-[9px] text-gray-500 truncate">Administrator</p>
+                </div>
+              </div>
+            )}
+            <button 
+              onClick={onLogout} 
+              className={`flex items-center gap-3 p-2.5 rounded-xl text-red-400 hover:bg-red-500/10 transition-all active:scale-95 ${!isExpanded && 'justify-center'}`}
+            >
+              <LogOut size={18} />
+              {isExpanded && <span className="text-xs font-bold">Keluar</span>}
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+      `}</style>
+    </>
   );
 }
