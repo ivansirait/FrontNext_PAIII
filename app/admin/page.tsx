@@ -51,7 +51,7 @@ export default function AdminPage() {
     setLoading(prev => ({ ...prev, data: true }));
     try {
       const [laporan, posts, galleries] = await Promise.all([
-        api.get('/laporan'), api.get('/posts'), api.get('/galleries')
+        api.get('/laporan'), api.get('/posts'), api.get('/galleries/albums')
       ]);
       setData({ laporan: laporan.data, posts: posts.data, galleries: galleries.data });
     } catch (err: any) {
